@@ -1,3 +1,16 @@
+task.wait(1)
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
+
+local Camera = workspace.CurrentCamera
+if not Camera then
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Wait()
+	Camera = workspace.CurrentCamera
+end
+
 repeat task.wait() until game:IsLoaded()
 repeat task.wait() until game.Players.LocalPlayer
 repeat task.wait() until workspace.CurrentCamera
