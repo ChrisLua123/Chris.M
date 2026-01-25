@@ -1,4 +1,4 @@
--- LOADSTRING SAFETY BOOT
+
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
@@ -15,13 +15,13 @@ workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
 	Camera = workspace.CurrentCamera
 end)
 
--- SETTINGS
+
 local BASE_COLOR = Color3.fromRGB(0,255,0)
 local BOX_PADDING = 6
 local BOX_THICKNESS = 3
 local LINE_THICKNESS = 2.5
 
--- TOGGLES
+
 local Toggles = {
 	ESP = true,
 	Box = true,
@@ -33,7 +33,7 @@ local Toggles = {
 
 local ESP = {}
 
--- GUI
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "ChrisESP"
 gui.ResetOnSpawn = false
@@ -112,7 +112,7 @@ UserInputService.InputBegan:Connect(function(i,gp)
 	end
 end)
 
--- BONES
+
 local bonesR15 = {
 	{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
 	{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
@@ -134,7 +134,7 @@ local function newLine()
 	return l
 end
 
--- ESP CREATE
+
 local function createESP(p)
 	if p == LocalPlayer then return end
 
@@ -173,7 +173,7 @@ for _,p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 Players.PlayerRemoving:Connect(removeESP)
 
--- UPDATE LOOP (NO FREEZING)
+
 RunService.RenderStepped:Connect(function()
 	local hue = (tick()*0.25)%1
 	local color = Toggles.Rainbow and Color3.fromHSV(hue,1,1) or BASE_COLOR
