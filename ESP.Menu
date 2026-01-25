@@ -1,30 +1,25 @@
-task.wait(1)
+-- LOADSTRING SAFETY BOOT
+if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+repeat task.wait() until Players.LocalPlayer
 
-local LocalPlayer = Players.LocalPlayer or Players.PlayerAdded:Wait()
-
-local Camera = workspace.CurrentCamera
-if not Camera then
-	workspace:GetPropertyChangedSignal("CurrentCamera"):Wait()
-	Camera = workspace.CurrentCamera
-end
-
-repeat task.wait() until game:IsLoaded()
-repeat task.wait() until game.Players.LocalPlayer
-repeat task.wait() until workspace.CurrentCamera
-task.wait(1)
-
-
-local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+
+repeat task.wait() until workspace.CurrentCamera
 local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
 
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+	Camera = workspace.CurrentCamera
+end)
 
+-- SETTINGS
 local BASE_COLOR = Color3.fromRGB(0,255,0)
+local BOX_PADDING = 6
+local BOX_THICKNESS = 3
+local LINE_THICKNESS = 2.5
 
 -- TOGGLES
 local Toggles = {
@@ -38,14 +33,14 @@ local Toggles = {
 
 local ESP = {}
 
-
-
-local gui = Instance.new(gui.Parent = gethui and gethui() or game.CoreGui
-)
+-- GUI
+local gui = Instance.new("ScreenGui")
 gui.Name = "ChrisESP"
+gui.ResetOnSpawn = false
+gui.Parent = gethui and gethui() or game.CoreGui
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,220,0,255)
+frame.Size = UDim2.new(0,220,0,280)
 frame.Position = UDim2.new(0,40,0,200)
 frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
 frame.BorderSizePixel = 0
@@ -71,7 +66,7 @@ end
 
 label("ESP PANEL",6,18)
 label("by chris",26,14,Color3.fromRGB(160,255,160))
-label("press F8 to hide",236,12,Color3.fromRGB(140,255,140))
+label("press F8 to hide",260,12,Color3.fromRGB(140,255,140))
 
 local RainbowButtonStroke
 
@@ -86,13 +81,10 @@ local function makeToggle(text,y,key,isRainbow)
 	b.AutoButtonColor = false
 	Instance.new("UICorner",b).CornerRadius = UDim.new(0,8)
 
-	local stroke = Instance.new("UIStroke", b)
-	stroke.Thickness = 1
-	stroke.Color = BASE_COLOR
-
-	if isRainbow then
-		RainbowButtonStroke = stroke
-	end
+	local s = Instance.new("UIStroke",b)
+	s.Thickness = 1
+	s.Color = BASE_COLOR
+	if isRainbow then RainbowButtonStroke = s end
 
 	local function refresh()
 		b.Text = text..": "..(Toggles[key] and "ON" or "OFF")
@@ -113,19 +105,15 @@ makeToggle("Names",145,"Names")
 makeToggle("Skeleton",175,"Skeleton")
 makeToggle("Rainbow ESP",205,"Rainbow",true)
 
--- F8 GUI TOGGLE
-local guiVisible = true
 UserInputService.InputBegan:Connect(function(i,gp)
 	if gp then return end
 	if i.KeyCode == Enum.KeyCode.F8 then
-		guiVisible = not guiVisible
-		gui.Enabled = guiVisible
+		gui.Enabled = not gui.Enabled
 	end
 end)
 
-
-
-local bones = {
+-- BONES
+local bonesR15 = {
 	{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
 	{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
 	{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
@@ -133,13 +121,20 @@ local bones = {
 	{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}
 }
 
+local bonesR6 = {
+	{"Head","Torso"},
+	{"Torso","Left Arm"},{"Torso","Right Arm"},
+	{"Torso","Left Leg"},{"Torso","Right Leg"}
+}
+
 local function newLine()
 	local l = Drawing.new("Line")
-	l.Thickness = 1
+	l.Thickness = LINE_THICKNESS
 	l.Visible = false
 	return l
 end
 
+-- ESP CREATE
 local function createESP(p)
 	if p == LocalPlayer then return end
 
@@ -150,17 +145,14 @@ local function createESP(p)
 		skeleton = {}
 	}
 
-	e.box.Thickness = 2
+	e.box.Thickness = BOX_THICKNESS
 	e.box.Filled = false
-	e.box.Visible = false
-
 	e.name.Text = p.Name
 	e.name.Size = 15
 	e.name.Center = true
 	e.name.Outline = true
-	e.name.Visible = false
 
-	for i=1,#bones do
+	for i=1,20 do
 		e.skeleton[i] = newLine()
 	end
 
@@ -181,26 +173,22 @@ for _,p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 Players.PlayerRemoving:Connect(removeESP)
 
-
-
+-- UPDATE LOOP (NO FREEZING)
 RunService.RenderStepped:Connect(function()
 	local hue = (tick()*0.25)%1
-	local espColor = Toggles.Rainbow and Color3.fromHSV(hue,1,1) or BASE_COLOR
+	local color = Toggles.Rainbow and Color3.fromHSV(hue,1,1) or BASE_COLOR
 
-	frameStroke.Color = espColor
+	frameStroke.Color = color
 	if RainbowButtonStroke then
 		RainbowButtonStroke.Color = Color3.fromHSV(hue,1,1)
 	end
 
 	for p,e in pairs(ESP) do
-		e.box.Color = espColor
-		e.tracer.Color = espColor
-		e.name.Color = espColor
-		for _,l in pairs(e.skeleton) do l.Color = espColor end
+		local char = p.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
-		local c = p.Character
-		local hum = c and c:FindFirstChildOfClass("Humanoid")
-		if not (Toggles.ESP and c and hum and hum.Health > 0) then
+		if not (Toggles.ESP and char and hum and hum.Health > 0 and hrp) then
 			e.box.Visible=false
 			e.tracer.Visible=false
 			e.name.Visible=false
@@ -208,59 +196,75 @@ RunService.RenderStepped:Connect(function()
 			continue
 		end
 
-		local minX,minY = math.huge,math.huge
-		local maxX,maxY = -math.huge,-math.huge
-		local onScreen = false
+		local center,onScreen = Camera:WorldToViewportPoint(hrp.Position)
+		if not onScreen then
+			e.box.Visible=false
+			e.tracer.Visible=false
+			e.name.Visible=false
+			for _,l in pairs(e.skeleton) do l.Visible=false end
+			continue
+		end
+
+		local minX,minY,maxX,maxY = math.huge,math.huge,-math.huge,-math.huge
+		local bones = hum.RigType == Enum.HumanoidRigType.R15 and bonesR15 or bonesR6
+		local has = false
 
 		for i,b in ipairs(bones) do
-			local p0,p1 = c:FindFirstChild(b[1]),c:FindFirstChild(b[2])
+			local p0,p1 = char:FindFirstChild(b[1]),char:FindFirstChild(b[2])
 			local l = e.skeleton[i]
 
 			if Toggles.Skeleton and p0 and p1 then
 				local v0,s0 = Camera:WorldToViewportPoint(p0.Position)
 				local v1,s1 = Camera:WorldToViewportPoint(p1.Position)
-
 				if s0 and s1 then
-					l.Visible = true
-					l.From = Vector2.new(v0.X,v0.Y)
-					l.To = Vector2.new(v1.X,v1.Y)
-					onScreen = true
-
-					minX = math.min(minX,v0.X,v1.X)
-					minY = math.min(minY,v0.Y,v1.Y)
-					maxX = math.max(maxX,v0.X,v1.X)
-					maxY = math.max(maxY,v0.Y,v1.Y)
+					l.Visible=true
+					l.From=Vector2.new(v0.X,v0.Y)
+					l.To=Vector2.new(v1.X,v1.Y)
+					minX=math.min(minX,v0.X,v1.X)
+					minY=math.min(minY,v0.Y,v1.Y)
+					maxX=math.max(maxX,v0.X,v1.X)
+					maxY=math.max(maxY,v0.Y,v1.Y)
+					has=true
 				else
-					l.Visible = false
+					l.Visible=false
 				end
 			else
-				l.Visible = false
+				l.Visible=false
 			end
 		end
 
-		if onScreen then
-			local w,h = maxX-minX,maxY-minY
+		if not has then
+			minX,maxX = center.X-30,center.X+30
+			minY,maxY = center.Y-50,center.Y+50
+		end
 
-			e.box.Visible = Toggles.Box
-			if Toggles.Box then
-				e.box.Position = Vector2.new(minX,minY)
-				e.box.Size = Vector2.new(w,h)
-			end
+		minX-=BOX_PADDING
+		minY-=BOX_PADDING
+		maxX+=BOX_PADDING
+		maxY+=BOX_PADDING
 
-			e.name.Visible = Toggles.Names
-			if Toggles.Names then
-				e.name.Position = Vector2.new(minX+w/2,minY-14)
-			end
+		local w,h = maxX-minX,maxY-minY
 
-			e.tracer.Visible = Toggles.Tracers
-			if Toggles.Tracers then
-				e.tracer.From = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
-				e.tracer.To = Vector2.new(minX+w/2,maxY)
-			end
-		else
-			e.box.Visible=false
-			e.tracer.Visible=false
-			e.name.Visible=false
+		e.box.Color=color
+		e.tracer.Color=color
+		e.name.Color=color
+		for _,l in pairs(e.skeleton) do l.Color=color end
+
+		e.box.Visible=Toggles.Box
+		if Toggles.Box then
+			e.box.Position=Vector2.new(minX,minY)
+			e.box.Size=Vector2.new(w,h)
+		end
+
+		e.name.Visible=Toggles.Names
+		if Toggles.Names then
+			e.name.Position=Vector2.new(minX+w/2,minY-14)
+		end
+
+		e.tracer.Visible=Toggles.Tracers
+		if Toggles.Tracers then
+			e.tracer.From=Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
+			e.tracer.To=Vector2.new(minX+w/2,maxY)
 		end
 	end
 end)
