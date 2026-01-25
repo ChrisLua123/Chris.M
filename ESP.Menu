@@ -1,17 +1,17 @@
---// SERVICES
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 
---// SAFE GUI PARENT (loadstring safe)
+
 local GuiParent = (gethui and gethui()) or game.CoreGui
 
---// SETTINGS
+
 local BASE_COLOR = Color3.fromRGB(0,255,0)
 
---// TOGGLES
+
 local Toggles = {
 	ESP = true,
 	Box = true,
@@ -21,7 +21,7 @@ local Toggles = {
 	Rainbow = false
 }
 
---// GUI
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "ChrisESP"
 gui.Parent = GuiParent
@@ -89,7 +89,7 @@ makeToggle("Names",145,"Names")
 makeToggle("Tracers",175,"Tracers")
 makeToggle("Rainbow ESP",205,"Rainbow")
 
---// F8 TOGGLE
+
 UserInputService.InputBegan:Connect(function(i,gp)
 	if gp then return end
 	if i.KeyCode == Enum.KeyCode.F8 then
@@ -97,7 +97,7 @@ UserInputService.InputBegan:Connect(function(i,gp)
 	end
 end)
 
---// CLEAN SKELETON (NO DISTORTION)
+
 local bonesR15 = {
 	{"Head","UpperTorso"},
 	{"UpperTorso","LowerTorso"},
@@ -117,7 +117,7 @@ local bonesR6 = {
 	{"Torso","Right Leg"}
 }
 
---// DRAWING HELPERS
+
 local function newLine()
 	local l = Drawing.new("Line")
 	l.Thickness = 2
