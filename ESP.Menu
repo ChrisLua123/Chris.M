@@ -2,32 +2,36 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
+
 local LocalPlayer = Players.LocalPlayer
-
-
-local GuiParent = (gethui and gethui()) or game.CoreGui
+local Camera = workspace.CurrentCamera
 
 
 local BASE_COLOR = Color3.fromRGB(0,255,0)
+local BOX_PADDING = 6
+local BOX_THICKNESS = 3
+local LINE_THICKNESS = 2.5
 
 
 local Toggles = {
 	ESP = true,
 	Box = true,
-	Skeleton = true,
-	Names = true,
 	Tracers = true,
-	Rainbow = false
+	Names = true,
+	Skeleton = true,
+	Rainbow = false,
+	Fly = false
 }
+
+local ESP = {}
 
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "ChrisESP"
-gui.Parent = GuiParent
+gui.Parent = gethui and gethui() or game.CoreGui
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,220,0,255)
+frame.Size = UDim2.new(0,220,0,340)
 frame.Position = UDim2.new(0,40,0,200)
 frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
 frame.BorderSizePixel = 0
@@ -35,9 +39,9 @@ frame.Active = true
 frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,10)
 
-local stroke = Instance.new("UIStroke", frame)
-stroke.Thickness = 2
-stroke.Color = BASE_COLOR
+local frameStroke = Instance.new("UIStroke", frame)
+frameStroke.Thickness = 2
+frameStroke.Color = BASE_COLOR
 
 local function label(text,y,size,color)
 	local l = Instance.new("TextLabel",frame)
@@ -53,9 +57,11 @@ end
 
 label("ESP PANEL",6,18)
 label("by chris",26,14,Color3.fromRGB(160,255,160))
-label("press F8 to hide",236,12,Color3.fromRGB(140,255,140))
+label("press F8 to hide",320,12,Color3.fromRGB(140,255,140))
 
-local function makeToggle(text,y,key)
+local RainbowButtonStroke
+
+local function makeToggle(text,y,key,isRainbow)
 	local b = Instance.new("TextButton",frame)
 	b.Size = UDim2.new(0.85,0,0,26)
 	b.Position = UDim2.new(0.075,0,0,y)
@@ -66,9 +72,10 @@ local function makeToggle(text,y,key)
 	b.AutoButtonColor = false
 	Instance.new("UICorner",b).CornerRadius = UDim.new(0,8)
 
-	local s = Instance.new("UIStroke", b)
+	local s = Instance.new("UIStroke",b)
 	s.Thickness = 1
 	s.Color = BASE_COLOR
+	if isRainbow then RainbowButtonStroke = s end
 
 	local function refresh()
 		b.Text = text..": "..(Toggles[key] and "ON" or "OFF")
@@ -82,13 +89,17 @@ local function makeToggle(text,y,key)
 	refresh()
 end
 
+
 makeToggle("ESP",55,"ESP")
 makeToggle("Box",85,"Box")
-makeToggle("Skeleton",115,"Skeleton")
+makeToggle("Tracers",115,"Tracers")
 makeToggle("Names",145,"Names")
-makeToggle("Tracers",175,"Tracers")
-makeToggle("Rainbow ESP",205,"Rainbow")
+makeToggle("Skeleton",175,"Skeleton")
+makeToggle("Rainbow ESP",205,"Rainbow",true)
 
+
+label("Other",240,14,Color3.fromRGB(160,255,160))
+makeToggle("Fly",260,"Fly")
 
 UserInputService.InputBegan:Connect(function(i,gp)
 	if gp then return end
@@ -99,55 +110,45 @@ end)
 
 
 local bonesR15 = {
-	{"Head","UpperTorso"},
-	{"UpperTorso","LowerTorso"},
-	{"UpperTorso","LeftUpperArm"},
-	{"LeftUpperArm","LeftLowerArm"},
-	{"UpperTorso","RightUpperArm"},
-	{"RightUpperArm","RightLowerArm"},
-	{"LowerTorso","LeftUpperLeg"},
-	{"LowerTorso","RightUpperLeg"}
+	{"Head","UpperTorso"},{"UpperTorso","LowerTorso"},
+	{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+	{"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+	{"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+	{"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"}
 }
 
 local bonesR6 = {
 	{"Head","Torso"},
-	{"Torso","Left Arm"},
-	{"Torso","Right Arm"},
-	{"Torso","Left Leg"},
-	{"Torso","Right Leg"}
+	{"Torso","Left Arm"},{"Torso","Right Arm"},
+	{"Torso","Left Leg"},{"Torso","Right Leg"}
 }
-
 
 local function newLine()
 	local l = Drawing.new("Line")
-	l.Thickness = 2
+	l.Thickness = LINE_THICKNESS
 	l.Visible = false
 	return l
 end
 
-local ESP = {}
 
 local function createESP(p)
 	if p == LocalPlayer then return end
 
 	local e = {
 		box = Drawing.new("Square"),
-		name = Drawing.new("Text"),
 		tracer = newLine(),
+		name = Drawing.new("Text"),
 		skeleton = {}
 	}
 
-	e.box.Thickness = 2
+	e.box.Thickness = BOX_THICKNESS
 	e.box.Filled = false
-	e.box.Visible = false
-
 	e.name.Text = p.Name
-	e.name.Size = 14
+	e.name.Size = 15
 	e.name.Center = true
 	e.name.Outline = true
-	e.name.Visible = false
 
-	for i=1,8 do
+	for i=1,20 do
 		e.skeleton[i] = newLine()
 	end
 
@@ -158,8 +159,8 @@ local function removeESP(p)
 	local e = ESP[p]
 	if not e then return end
 	e.box:Remove()
-	e.name:Remove()
 	e.tracer:Remove()
+	e.name:Remove()
 	for _,l in pairs(e.skeleton) do l:Remove() end
 	ESP[p] = nil
 end
@@ -168,98 +169,127 @@ for _,p in ipairs(Players:GetPlayers()) do createESP(p) end
 Players.PlayerAdded:Connect(createESP)
 Players.PlayerRemoving:Connect(removeESP)
 
---// UPDATE LOOP (NO FREEZING)
+
 RunService.RenderStepped:Connect(function()
-	local color = BASE_COLOR
-	if Toggles.Rainbow then
-		color = Color3.fromHSV((tick()*0.25)%1,1,1)
+	local color = Toggles.Rainbow
+		and Color3.fromHSV((tick()*0.25)%1,1,1)
+		or BASE_COLOR
+
+	frameStroke.Color = color
+	if RainbowButtonStroke then
+		RainbowButtonStroke.Color = color
 	end
-	stroke.Color = color
 
 	for p,e in pairs(ESP) do
-		e.box.Color = color
-		e.name.Color = color
-		e.tracer.Color = color
-		for _,l in pairs(e.skeleton) do l.Color = color end
+		local char = p.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
-		local c = p.Character
-		local hum = c and c:FindFirstChildOfClass("Humanoid")
-		local hrp = c and c:FindFirstChild("HumanoidRootPart")
-
-		if not (Toggles.ESP and c and hum and hum.Health > 0 and hrp) then
+		if not (Toggles.ESP and char and hum and hum.Health > 0 and hrp) then
 			e.box.Visible=false
-			e.name.Visible=false
 			e.tracer.Visible=false
+			e.name.Visible=false
 			for _,l in pairs(e.skeleton) do l.Visible=false end
 			continue
 		end
 
 		local bones = hum.RigType == Enum.HumanoidRigType.R15 and bonesR15 or bonesR6
-		local parts = {}
+		local minX,minY,maxX,maxY = math.huge,math.huge,-math.huge,-math.huge
+		local anyVisible = false
 
-		for _,b in ipairs(bones) do
-			local p0,p1 = c:FindFirstChild(b[1]),c:FindFirstChild(b[2])
-			if p0 and p1 then
+		for i,b in ipairs(bones) do
+			local p0,p1 = char:FindFirstChild(b[1]),char:FindFirstChild(b[2])
+			local l = e.skeleton[i]
+
+			if Toggles.Skeleton and p0 and p1 then
 				local v0,s0 = Camera:WorldToViewportPoint(p0.Position)
 				local v1,s1 = Camera:WorldToViewportPoint(p1.Position)
 				if s0 and s1 then
-					table.insert(parts,v0)
-					table.insert(parts,v1)
+					l.Visible=true
+					l.From=Vector2.new(v0.X,v0.Y)
+					l.To=Vector2.new(v1.X,v1.Y)
+					minX=math.min(minX,v0.X,v1.X)
+					minY=math.min(minY,v0.Y,v1.Y)
+					maxX=math.max(maxX,v0.X,v1.X)
+					maxY=math.max(maxY,v0.Y,v1.Y)
+					anyVisible=true
+				else
+					l.Visible=false
 				end
+			else
+				l.Visible=false
 			end
 		end
 
-		if #parts == 0 then
+		if not anyVisible then
 			e.box.Visible=false
-			e.name.Visible=false
 			e.tracer.Visible=false
-			for _,l in pairs(e.skeleton) do l.Visible=false end
+			e.name.Visible=false
 			continue
 		end
 
-		local minX,minY,maxX,maxY = math.huge,math.huge,-math.huge,-math.huge
-		for _,v in ipairs(parts) do
-			minX = math.min(minX,v.X)
-			minY = math.min(minY,v.Y)
-			maxX = math.max(maxX,v.X)
-			maxY = math.max(maxY,v.Y)
-		end
+		minX -= BOX_PADDING
+		minY -= BOX_PADDING
+		maxX += BOX_PADDING
+		maxY += BOX_PADDING
 
 		local w,h = maxX-minX,maxY-minY
 
 		e.box.Visible = Toggles.Box
 		if Toggles.Box then
-			e.box.Position = Vector2.new(minX,minY)
-			e.box.Size = Vector2.new(w,h)
+			e.box.Position=Vector2.new(minX,minY)
+			e.box.Size=Vector2.new(w,h)
+			e.box.Color=color
 		end
 
 		e.name.Visible = Toggles.Names
 		if Toggles.Names then
-			e.name.Position = Vector2.new(minX+w/2,minY-14)
+			e.name.Position=Vector2.new(minX+w/2,minY-14)
+			e.name.Color=color
 		end
 
 		e.tracer.Visible = Toggles.Tracers
 		if Toggles.Tracers then
-			e.tracer.From = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
-			e.tracer.To = Vector2.new(minX+w/2,maxY)
-		end
-
-		for i,b in ipairs(bones) do
-			local l = e.skeleton[i]
-			l.Visible = Toggles.Skeleton
-			if Toggles.Skeleton then
-				local p0,p1 = c:FindFirstChild(b[1]),c:FindFirstChild(b[2])
-				if p0 and p1 then
-					local v0,s0 = Camera:WorldToViewportPoint(p0.Position)
-					local v1,s1 = Camera:WorldToViewportPoint(p1.Position)
-					if s0 and s1 then
-						l.From = Vector2.new(v0.X,v0.Y)
-						l.To = Vector2.new(v1.X,v1.Y)
-					else
-						l.Visible = false
-					end
-				end
-			end
+			e.tracer.From=Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
+			e.tracer.To=Vector2.new(minX+w/2,maxY)
+			e.tracer.Color=color
 		end
 	end
+end)
+
+
+local bv,bg
+RunService.RenderStepped:Connect(function()
+	if not Toggles.Fly then
+		if bv then bv:Destroy() bg:Destroy() bv=nil bg=nil end
+		local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if h then h.PlatformStand=false end
+		return
+	end
+
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hrp or not hum then return end
+
+	if not bv then
+		hum.PlatformStand=true
+		bv=Instance.new("BodyVelocity",hrp)
+		bv.MaxForce=Vector3.new(1e9,1e9,1e9)
+		bg=Instance.new("BodyGyro",hrp)
+		bg.MaxTorque=Vector3.new(1e9,1e9,1e9)
+	end
+
+	local cam=Camera.CFrame
+	local dir=Vector3.zero
+	if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir+=cam.LookVector end
+	if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir-=cam.LookVector end
+	if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir-=cam.RightVector end
+	if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir+=cam.RightVector end
+	if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir+=Vector3.yAxis end
+	if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then dir-=Vector3.yAxis end
+
+	local speed = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and 120 or 60
+	bv.Velocity = dir.Magnitude>0 and dir.Unit*speed or Vector3.zero
+	bg.CFrame = cam
 end)
