@@ -12,7 +12,7 @@ local BOX_PADDING = 6
 local BOX_THICKNESS = 3
 local LINE_THICKNESS = 2.5
 
-
+-- TOGGLES
 local Toggles = {
 	ESP = true,
 	Box = true,
@@ -27,11 +27,11 @@ local ESP = {}
 
 
 local gui = Instance.new("ScreenGui")
-gui.Name = "ChrisESP"
+gui.Name = "ChrisHub"
 gui.Parent = gethui and gethui() or game.CoreGui
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,220,0,340)
+frame.Size = UDim2.new(0,220,0,360)
 frame.Position = UDim2.new(0,40,0,200)
 frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
 frame.BorderSizePixel = 0
@@ -55,9 +55,9 @@ local function label(text,y,size,color)
 	return l
 end
 
-label("ESP PANEL",6,18)
-label("by chris",26,14,Color3.fromRGB(160,255,160))
-label("press F8 to hide",320,12,Color3.fromRGB(140,255,140))
+label("Chris's Hub",6,18)
+label("ESP / Fly",26,14,Color3.fromRGB(160,255,160))
+label("Press F8 to hide",335,12,Color3.fromRGB(140,255,140))
 
 local RainbowButtonStroke
 
@@ -89,7 +89,6 @@ local function makeToggle(text,y,key,isRainbow)
 	refresh()
 end
 
-
 makeToggle("ESP",55,"ESP")
 makeToggle("Box",85,"Box")
 makeToggle("Tracers",115,"Tracers")
@@ -97,13 +96,11 @@ makeToggle("Names",145,"Names")
 makeToggle("Skeleton",175,"Skeleton")
 makeToggle("Rainbow ESP",205,"Rainbow",true)
 
-
 label("Other",240,14,Color3.fromRGB(160,255,160))
 makeToggle("Fly",260,"Fly")
 
 UserInputService.InputBegan:Connect(function(i,gp)
-	if gp then return end
-	if i.KeyCode == Enum.KeyCode.F8 then
+	if not gp and i.KeyCode == Enum.KeyCode.F8 then
 		gui.Enabled = not gui.Enabled
 	end
 end)
@@ -130,7 +127,7 @@ local function newLine()
 	return l
 end
 
-
+-- CREATE ESP
 local function createESP(p)
 	if p == LocalPlayer then return end
 
@@ -171,88 +168,78 @@ Players.PlayerRemoving:Connect(removeESP)
 
 
 RunService.RenderStepped:Connect(function()
-	local color = Toggles.Rainbow
-		and Color3.fromHSV((tick()*0.25)%1,1,1)
-		or BASE_COLOR
-
+	local color = Toggles.Rainbow and Color3.fromHSV((tick()*0.25)%1,1,1) or BASE_COLOR
 	frameStroke.Color = color
-	if RainbowButtonStroke then
-		RainbowButtonStroke.Color = color
-	end
+	if RainbowButtonStroke then RainbowButtonStroke.Color = color end
 
 	for p,e in pairs(ESP) do
+		-- HIDE EVERYTHING FIRST (CRITICAL)
+		e.box.Visible = false
+		e.tracer.Visible = false
+		e.name.Visible = false
+		for _,l in pairs(e.skeleton) do l.Visible = false end
+
+		if not Toggles.ESP then continue end
+
 		local char = p.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local head = char and char:FindFirstChild("Head")
+		if not (char and hum and hrp and head and hum.Health > 0) then continue end
 
-		if not (Toggles.ESP and char and hum and hum.Health > 0 and hrp) then
-			e.box.Visible=false
-			e.tracer.Visible=false
-			e.name.Visible=false
-			for _,l in pairs(e.skeleton) do l.Visible=false end
-			continue
-		end
+		
+		local headPos, hOn = Camera:WorldToViewportPoint(head.Position)
+		local rootPos, rOn = Camera:WorldToViewportPoint(hrp.Position)
+		if not (hOn and rOn) then continue end
 
-		local bones = hum.RigType == Enum.HumanoidRigType.R15 and bonesR15 or bonesR6
-		local minX,minY,maxX,maxY = math.huge,math.huge,-math.huge,-math.huge
-		local anyVisible = false
+		local height = math.abs(headPos.Y - rootPos.Y)
+		local width = height * 0.55
 
-		for i,b in ipairs(bones) do
-			local p0,p1 = char:FindFirstChild(b[1]),char:FindFirstChild(b[2])
-			local l = e.skeleton[i]
+		local minX = headPos.X - width/2 - BOX_PADDING
+		local maxX = headPos.X + width/2 + BOX_PADDING
+		local minY = headPos.Y - BOX_PADDING
+		local maxY = headPos.Y + height + BOX_PADDING
 
-			if Toggles.Skeleton and p0 and p1 then
-				local v0,s0 = Camera:WorldToViewportPoint(p0.Position)
-				local v1,s1 = Camera:WorldToViewportPoint(p1.Position)
-				if s0 and s1 then
-					l.Visible=true
-					l.From=Vector2.new(v0.X,v0.Y)
-					l.To=Vector2.new(v1.X,v1.Y)
-					minX=math.min(minX,v0.X,v1.X)
-					minY=math.min(minY,v0.Y,v1.Y)
-					maxX=math.max(maxX,v0.X,v1.X)
-					maxY=math.max(maxY,v0.Y,v1.Y)
-					anyVisible=true
-				else
-					l.Visible=false
-				end
-			else
-				l.Visible=false
-			end
-		end
-
-		if not anyVisible then
-			e.box.Visible=false
-			e.tracer.Visible=false
-			e.name.Visible=false
-			continue
-		end
-
-		minX -= BOX_PADDING
-		minY -= BOX_PADDING
-		maxX += BOX_PADDING
-		maxY += BOX_PADDING
-
-		local w,h = maxX-minX,maxY-minY
-
-		e.box.Visible = Toggles.Box
+		
 		if Toggles.Box then
-			e.box.Position=Vector2.new(minX,minY)
-			e.box.Size=Vector2.new(w,h)
-			e.box.Color=color
+			e.box.Visible = true
+			e.box.Position = Vector2.new(minX,minY)
+			e.box.Size = Vector2.new(maxX-minX,maxY-minY)
+			e.box.Color = color
 		end
 
-		e.name.Visible = Toggles.Names
+		
 		if Toggles.Names then
-			e.name.Position=Vector2.new(minX+w/2,minY-14)
-			e.name.Color=color
+			e.name.Visible = true
+			e.name.Position = Vector2.new((minX+maxX)/2,minY-14)
+			e.name.Color = color
 		end
 
-		e.tracer.Visible = Toggles.Tracers
+		
 		if Toggles.Tracers then
-			e.tracer.From=Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
-			e.tracer.To=Vector2.new(minX+w/2,maxY)
-			e.tracer.Color=color
+			e.tracer.Visible = true
+			e.tracer.From = Vector2.new(Camera.ViewportSize.X/2,Camera.ViewportSize.Y)
+			e.tracer.To = Vector2.new((minX+maxX)/2,maxY)
+			e.tracer.Color = color
+		end
+
+		
+		if Toggles.Skeleton then
+			local bones = hum.RigType == Enum.HumanoidRigType.R15 and bonesR15 or bonesR6
+			for i,b in ipairs(bones) do
+				local p0,p1 = char:FindFirstChild(b[1]),char:FindFirstChild(b[2])
+				if p0 and p1 then
+					local v0,s0 = Camera:WorldToViewportPoint(p0.Position)
+					local v1,s1 = Camera:WorldToViewportPoint(p1.Position)
+					if s0 and s1 then
+						local l = e.skeleton[i]
+						l.Visible = true
+						l.From = Vector2.new(v0.X,v0.Y)
+						l.To = Vector2.new(v1.X,v1.Y)
+						l.Color = color
+					end
+				end
+			end
 		end
 	end
 end)
@@ -262,14 +249,14 @@ local bv,bg
 RunService.RenderStepped:Connect(function()
 	if not Toggles.Fly then
 		if bv then bv:Destroy() bg:Destroy() bv=nil bg=nil end
-		local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		local h=LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
 		if h then h.PlatformStand=false end
 		return
 	end
 
-	local char = LocalPlayer.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local char=LocalPlayer.Character
+	local hrp=char and char:FindFirstChild("HumanoidRootPart")
+	local hum=char and char:FindFirstChildOfClass("Humanoid")
 	if not hrp or not hum then return end
 
 	if not bv then
